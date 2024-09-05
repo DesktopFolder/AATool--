@@ -23,6 +23,8 @@ struct CurrentFileProvider
     // For now, we are only thinking about 1 player worlds.
     CurrentFileProvider();
 
+    // What does this actually return?
+    // Ah, it is the latest advancement file json path.
     std::optional<std::string> poll(uint64_t ticks = 0);
 
     void debug();

@@ -24,5 +24,11 @@
     "log": "aatool.log",
     "vsync": true,
     "verbose": true,
-    "log-level": "debug"
+    "log-level": "debug",
+
+    "instance": {
+        "cache_location": "temp/",
+        "allow_autodetect": true,
+        "instance_paths": []
+    }
 }

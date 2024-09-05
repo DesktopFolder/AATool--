@@ -11,8 +11,9 @@
 
 #include "ConfigProvider.hpp"
 #include "FileProvider.hpp"
-#include "Overlay.hpp"
+#include "InstanceProvider.hpp"
 #include "Map.hpp"
+#include "Overlay.hpp"
 #include "ResourceManager.hpp"
 #include "WindowManager.hpp"
 
@@ -21,7 +22,8 @@
 
 namespace aa
 {
-AppConfig Application::configure() {
+AppConfig Application::configure()
+{
     auto& conf = aa::conf::get();
     if (const auto logfile = aa::conf::get_if<std::string>(conf, "log"); logfile.has_value())
     {
@@ -31,8 +33,8 @@ AppConfig Application::configure() {
     Logger::stdout_default = aa::conf::get_or(conf, "verbose", false);
     Logger::set_level(aa::conf::get_or<std::string>(conf, "log-level", "info"));
 
-    return { aa::conf::get_or(conf, "loop-sleep", 1ull), aa::conf::get_or(conf, "vsync", false),
-    aa::conf::get_or<std::string>(conf, "manifest", "advancements.json") };
+    return {aa::conf::get_or(conf, "loop-sleep", 1ull), aa::conf::get_or(conf, "vsync", false),
+            aa::conf::get_or<std::string>(conf, "manifest", "advancements.json")};
 }
 
 void Application::run()
@@ -42,16 +44,19 @@ void Application::run()
 
     // Todo: It would be really cool if we could do lazy/background loading
     // of assets here. Just launch off a std::thread and do window setup @ simul.
-    auto manifest = AdvancementManifest::from_file(conf.manifest);
+    auto manifest = AllAdvancements::from_file(conf.manifest);
 
     // Doesn't do anything, we're just creating bindings.
-    auto& ovWindow     = aa::WindowManager::instance().get(aa::WindowID::Overlay);
-    auto& mapWindow     = aa::WindowManager::instance().get(aa::WindowID::Map);
+    auto& ovWindow   = aa::WindowManager::instance().get(aa::WindowID::Overlay);
+    auto& mapWindow  = aa::WindowManager::instance().get(aa::WindowID::Map);
     auto& mainwindow = aa::WindowManager::instance().get(aa::WindowID::Main);
     ovWindow.setVerticalSyncEnabled(conf.vsync);
 
     aa::OverlayManager ov(manifest);
     aa::MapManager mapper{conf::getNS("map")};
+
+    aa::InstanceProvider instance{};
+    aa::WorldProvider world{};
 
     aa::CurrentFileProvider fp;
     auto& rm = aa::ResourceManager::instance();
@@ -76,27 +81,32 @@ void Application::run()
                 else if (event.key.code == sf::Keyboard::B)
                 {
                     log::debug("Parsing test advancements file (1) - testing/all-everything.json");
-                    ov.reset_from_file("testing/all-everything.json", manifest);
+                    manifest.update_from_file("testing/all-everything.json");
+                    ov.update_to(manifest);
                 }
                 else if (event.key.code == sf::Keyboard::C)
                 {
                     log::debug("Parsing test advancements file (2) - testing/no-recipes.json");
-                    ov.reset_from_file("testing/no-recipes.json", manifest);
+                    manifest.update_from_file("testing/no-recipes.json");
+                    ov.update_to(manifest);
                 }
                 else if (event.key.code == sf::Keyboard::D)
                 {
                     log::debug("Parsing test advancements file (3) - testing/less.json");
-                    ov.reset_from_file("testing/less.json", manifest);
+                    manifest.update_from_file("testing/less.json");
+                    ov.update_to(manifest);
                 }
                 else if (event.key.code == sf::Keyboard::E)
                 {
                     log::debug("Parsing test advancements file (4) - testing/most-complete.json");
-                    ov.reset_from_file("testing/most-complete.json", manifest);
+                    manifest.update_from_file("testing/most-complete.json");
+                    ov.update_to(manifest);
                 }
                 else if (event.key.code == sf::Keyboard::R)
                 {
                     log::debug("Resetting to all advancements required.");
-                    ov.reset(manifest);
+                    manifest.reset();
+                    ov.update_to(manifest);
                 }
                 else if (event.key.code == sf::Keyboard::P)
                 {
@@ -110,11 +120,19 @@ void Application::run()
         }
         wm.clearAll();
 
-        // poll after handling events...
-        if (const auto result = fp.poll(ticks); result.has_value())
+        instance.poll(ticks);
+        const auto li = instance.current_instance();
+        // Once we have the current instance, we can get current information in the latest world.
+        // TODO - is this something we can get from just the saves dir? I don't remember.
+        if (li && world.poll(*li, ticks))
         {
-            log::debug("Attempting to reset from found updated file: ", result.value());
-            ov.reset_from_file(result.value(), manifest);
+            auto l = world.get_latest().get_advancements();
+            if (not l.empty())
+            {
+                log::debug("Attempting to reset from found updated file: ", l);
+                manifest.update_from_file(std::string{l});
+                ov.update_to(manifest);
+            }
         }
 
         /*
@@ -140,4 +158,4 @@ void Application::run()
         mainwindow.close();
     }
 }
-}
+} // namespace aa

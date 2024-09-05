@@ -85,11 +85,6 @@ struct ResourceManager
     std::vector<std::unique_ptr<sf::Texture>> random_textures;
     std::vector<std::unique_ptr<sf::RenderTexture>> random_rerenders;
 
-    // unused atm
-    std::unordered_map<std::string, std::unordered_map<std::string, sf::Texture>> criteria;
-    // use this for now
-    std::unordered_map<std::string, sf::Texture> test_criteria;
-
     // actually use this lol!
     string_map<std::unique_ptr<sf::Texture>> criteria_map;
 

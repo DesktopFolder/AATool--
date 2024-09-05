@@ -10,7 +10,7 @@ using json = nlohmann::json;
 
 namespace aa
 {
-OverlayManager::OverlayManager(AdvancementManifest& manifest)
+OverlayManager::OverlayManager(AllAdvancements& manifest)
 {
     // Configure the overlay.
     using aa::conf::apply;
@@ -47,13 +47,10 @@ OverlayManager::OverlayManager(AdvancementManifest& manifest)
 
     remap_textures(manifest);
 
-    // Okay, now to test out the new advancements setup.
-    auto status = AdvancementStatus::from_default(manifest);
-
-    reset_from_status(status);
+    update_to(manifest);
 }
 
-void OverlayManager::remap_textures(AdvancementManifest& manifest)
+void OverlayManager::remap_textures(AllAdvancements& advancements)
 {
     auto& rm = aa::ResourceManager::instance();
     // This works for now :)
@@ -65,19 +62,19 @@ void OverlayManager::remap_textures(AdvancementManifest& manifest)
         .debug("Remapping criteria to size: ", crit_sz)
         .debug("Remapping advancements to size: ", adv_sz);
 
-    for (auto& [_, advancement] : manifest.advancements)
+    for (auto& [_, advancement] : advancements.advancements)
     {
         advancement.icon = rm.remap_texture(advancement.icon, adv_sz);
         for (auto& itr : advancement.criteria)
         {
-            itr.second = rm.remap_texture(itr.second, crit_sz);
+            itr.second.icon = rm.remap_texture(itr.second.icon, crit_sz);
         }
     }
 }
 
-void OverlayManager::reset_from_status(const AdvancementStatus& status)
+void OverlayManager::update_to(const AllAdvancements& advancements)
 {
-    if (!status.meta.valid)
+    if (!advancements.meta.valid)
     {
         get_logger("OverlayManager").warning("Failed to reset from status - parse/load error.");
         return;
@@ -86,38 +83,23 @@ void OverlayManager::reset_from_status(const AdvancementStatus& status)
     reqs.clear();
     prereqs.clear();
 
-    for (auto& [k, v] : status.incomplete)
+    for (auto& [k, v] : advancements.advancements)
     {
-        reqs.emplace(v.pretty_name, v.icon);
-
-        for (auto loc : v.criteria_ordered)
+        if (v.achieved)
         {
-            prereqs.emplace("", v.criteria.find(loc)->second);
+            continue;
+        }
+        if (v.icon != nullptr) reqs.emplace(v.pretty_name, v.icon);
+
+        for (auto loc : v.criteria_list)
+        {
+            const auto& crit = v.criteria.find(loc)->second;
+            if (crit.achieved) continue;
+            if (crit.icon == nullptr) continue;
+            // GROSS FIX LATER !!!! TODO FOR REAL
+            prereqs.emplace("", v.criteria.find(loc)->second.icon);
         }
     }
-}
-
-void OverlayManager::reset_from_file(std::string_view filename,
-                                         const AdvancementManifest& manifest)
-{
-    // Okay, now to test out the new advancements setup.
-    auto status = AdvancementStatus::from_file(filename, manifest);
-
-    get_logger("OverlayManager")
-        .debug("Resetting from advancements.json manifest given file ", filename);
-
-    // This can handle errors, we assume that sometimes we get a bad file.
-    reset_from_status(status);
-}
-
-void OverlayManager::reset(const AdvancementManifest& manifest)
-{
-    // Okay, now to test out the new advancements setup.
-    auto status = AdvancementStatus::from_default(manifest);
-
-    get_logger("OverlayManager").debug("Resetting from advancements.json manifest.");
-
-    reset_from_status(status);
 }
 
 void OverlayManager::debug()

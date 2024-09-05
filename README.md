@@ -29,3 +29,7 @@ See [the todo list](todo.md) for a potentially more comprehensive list of curren
     - [ ] It exists
 - [ ] Full Voice Acting
     - [ ] This is a joke, trust me :)
+
+## Defining Advancement Manifests
+
+The base advancement manifest is located in advancements.json. However, more advancements can be added to this file to add advancements to the tracker.

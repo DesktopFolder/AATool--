@@ -1,5 +1,7 @@
 *.out
+test.cpp
 
+az/
 assets/
 
 build/
@@ -7,6 +9,7 @@ build/
 compile_commands.json
 *.log
 build*/
+__pycache__
 
 # Windows things :) (Pain)
 .vs/

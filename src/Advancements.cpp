@@ -9,6 +9,18 @@ using json = nlohmann::json;
 
 namespace aa
 {
+const sf::Texture* Criteria::get_texture(const std::string& icon) const
+{
+    auto& rm              = ResourceManager::instance();
+    std::string_view disc = icon.empty() ? discriminator() : std::string_view{icon};
+    if (not rm.criteria_map.contains(disc))
+    {
+        get_logger("Criteria::get_texture")
+            .fatal_error(fmt::format("Could not find {} (icon: {}) ({})", disc, icon, slug));
+    }
+    return rm.criteria_map.find(disc)->second.get();
+}
+
 namespace manifest
 {
 // This namespace exists to group parsers that only act on
@@ -16,10 +28,9 @@ namespace manifest
 // Specifically the format of file that is generated from the XML.
 std::string unprefixed(std::string s)
 {
-    const std::string_view mc_prefix = "minecraft:";
-    if (s.starts_with(mc_prefix))
+    if (const auto itr = s.find(':'); itr != std::string::npos)
     {
-        return s.substr(mc_prefix.size());
+        return s.substr(itr + 1);
     }
     return s;
 }
@@ -67,19 +78,18 @@ std::string get_icon(auto& j)
 }
 } // namespace manifest
 
-AdvancementManifest
-AdvancementManifest::from_file(std::string_view filename /* advancements.json */)
+// Create our initial advancement state out of a manifest file.
+AllAdvancements AllAdvancements::from_file(std::string_view filename /* advancements.json */)
 {
-    auto& logger = get_logger("AdvancementManifest::from_file");
-    AdvancementManifest ret{};
+    auto& logger = get_logger("AllAdvancements::from_file");
+    AllAdvancements ret{};
 
     logger.debug("Loading core advancement manifest from file: ", filename);
 
     std::ifstream f(filename.data() /* msvc */);
     if (!f.good())
     {
-        logger.error("Failed to load core advancement manifest from file: ", filename);
-        throw std::runtime_error("No advancements manifest (json) found / loadable!");
+        logger.fatal_error("Failed to load core advancement manifest from file: ", filename);
     }
 
     logger.debug("Parsing manifest JSON.");
@@ -94,7 +104,9 @@ AdvancementManifest::from_file(std::string_view filename /* advancements.json */
     auto assets = aa::ResourceManager::getAllAssets();
     for (auto& [k, v] : assets)
     {
-        logger.debug("Asset named ", k, " located at ", v);
+        // take this out of startup logs for now
+        // I know, ideally we'd log it, but I kind of want readable logs in console...
+        // logger.debug("Asset named ", k, " located at ", v);
     }
     logger.debug("Was able to find ", assets.size(), " potential assets.");
 
@@ -107,7 +119,7 @@ AdvancementManifest::from_file(std::string_view filename /* advancements.json */
          */
         const std::string cat = k["@name"];
         logger.debug("Found advancement category: ", cat, ". Now iterating advancements...");
-        for (auto& a : k["advancement"])
+        for (auto& manif_adv : k["advancement"])
         {
             /*
              *  ..., {
@@ -118,63 +130,68 @@ AdvancementManifest::from_file(std::string_view filename /* advancements.json */
              *         "@half": "false"
              *       },
              */
-            const auto id           = manifest::parse_advancement_id(a);
-            std::string pretty_name = a["@name"];
-            std::string short_name  = get_or(a, "@short_name", pretty_name);
+            auto id /* slug */ = manifest::parse_advancement_id(manif_adv);
+            id.full_id = manif_adv["@id"].template get<std::string>();
+            std::string pretty_name  = manif_adv["@name"];
+            std::string short_name   = get_or(manif_adv, "@short_name", pretty_name);
             logger.debug("Got ID: ", id.full_id, " (category: ", id.category,
                          ", icon name: ", id.icon, ") actual name: ", pretty_name,
                          " short name: ", short_name);
             // "minecraft:adventure/two_birds_one_arrow"
             // -> ["adventure/two_birds_one_arrow", "two_birds_one_arrow"]
-            auto [itr, success] = ret.advancements.emplace(
-                id.full_id, Advancement{id.icon, id.category, pretty_name, short_name});
+            auto [itr, success] =
+                ret.advancements.emplace(id.full_id, Advancement::from_slug(id.full_id));
             if (!success)
             {
                 logger.warning("Failed to insert advancement: ", id.full_id);
             }
-            auto& adv = itr->second;
+            auto& adv       = itr->second;
+            adv.pretty_name = std::move(pretty_name);
+            adv.short_name  = std::move(short_name);
 
             // Load all criteria.
-            if (a.contains("criteria"))
+            if (manif_adv.contains("criteria"))
             {
-                if (not a["criteria"].contains("criterion"))
+                if (not manif_adv["criteria"].contains("criterion"))
                 {
-                    logger.fatal_error(adv.full_id(),
+                    logger.fatal_error(adv.slug,
                                        ": Failed to load criteria: key 'criterion' missing.");
                 }
 
                 // Load criteria.
                 logger.debug("Loading criteria for ", adv.name);
-                for (auto& c : a["criteria"]["criterion"])
+                for (auto& c : manif_adv["criteria"]["criterion"])
                 {
                     // Try to load the criteria. The right way.
                     const auto crit = manifest::unprefixed_id(c);
                     const std::string icon =
                         c.contains("@icon") ? c["@icon"].template get<std::string>() : crit;
                     logger.debug("Adding criterion: ", crit);
+                    /*
                     if (not rm.criteria_map.contains(icon))
                     {
                         if (not rm.criteria_map.contains(crit))
                         {
                             logger.fatal_error("Could not find criteria texture for: ", icon,
-                                               " (In advancement: ", adv.full_id(), ")");
+                                               " (In advancement: ", adv.slug, ")");
                         }
-                        adv.add_criteria(crit, rm.criteria_map[crit].get());
+                        adv.add_criteria(crit, icon);
                         continue;
                     }
-                    adv.add_criteria(crit, rm.criteria_map[icon].get());
+                    */
+                    adv.add_criteria(crit, icon);
                 }
             }
 
             // Now all that is missing is our own icon.
 
             // Load EXPLICIT icon.
-            if (const auto explicit_icon = manifest::get_icon(a); explicit_icon != "")
+            if (const auto explicit_icon = manifest::get_icon(manif_adv); explicit_icon != "")
             {
                 if (not assets.contains(explicit_icon))
                 {
                     logger.fatal_error("Could not locate icon: ", explicit_icon, " (for ",
-                                       adv.full_id(), ")");
+                                       adv.slug, ")");
                 }
 
                 adv.icon = rm.store_texture_at(assets[explicit_icon]);
@@ -204,109 +221,83 @@ AdvancementManifest::from_file(std::string_view filename /* advancements.json */
     return ret;
 }
 
-AdvancementStatus AdvancementStatus::from_file(std::string_view filename,
-                                               const AdvancementManifest& manifest)
+void AllAdvancements::update_from_file(std::string_view filename)
 {
-    auto& logger = get_logger("AdvancementStatus::from_file");
-    AdvancementStatus ret{};
-
+    auto& logger = get_logger("AllAdvancements::update_from_file");
     logger.debug("Loading advancements from file: ", filename);
 
     std::ifstream f(filename.data() /* msvc */);
     if (!f.good())
     {
         logger.error("Could not open file: ", filename);
-        ret.meta.valid = false;
-        return ret;
+        return;
     }
 
-    auto advancements = json{};
+    auto advancements_json = json{};
     try
     {
-        advancements = json::parse(f);
+        advancements_json = json::parse(f);
     }
     catch (std::exception& e)
     {
         logger.error("Failed to parse JSON: ", e.what());
-        ret.meta.valid = false;
-        return ret;
+        return;
     }
 
     // Copy :sob:
     // Kind of have to do this. Because we are 'removing' things,
     // not 'adding' them. Oh well.
-    ret.incomplete = manifest.advancements;
+    // ret.incomplete = manifest.advancements;
+    // Leaving the above here as a reminder. Things are so much better now.
+    // :)
+    for (auto& [key, adv] : advancements)
+    {
+        adv.reset_for_load();
+    }
 
     const std::string_view adv_prefix = "minecraft:";
-    for (const auto& [key, value] : advancements.items())
+    for (const auto& [key, value] : advancements_json.items())
     {
         if (key.starts_with("minecraft:recipes/") or not key.starts_with(adv_prefix)) continue;
 
         logger.debug("Found advancement: ", key);
         // this is probably definitely totally an advancement :)
-        auto name = key.substr(adv_prefix.size());
-        if (not ret.incomplete.contains(name))
+        if (not advancements.contains(key))
         {
-            logger.error("We don't have the advancement: ", name);
-            ret.meta.valid = false;
-            return ret;
+            logger.error("We don't have the advancement: ", key, " - hot-loading it.");
+            advancements.emplace(key, Advancement::from_slug(key, Advancement::Source::Found));
         }
 
         const auto is_completed = value.contains("done") && value["done"].template get<bool>();
+        Advancement& adv        = advancements.find(key)->second;
 
         if (is_completed)
         {
-            // Basically, move from incomplete -> complete.
-            ret.complete.emplace(name, std::move(ret.incomplete[name]));
-            ret.incomplete.erase(name);
-
-            // Don't need to do anything else. No criteria, etc.
+            adv.mark_completed();
             continue;
         }
 
         if (value.contains("criteria"))
         {
-            // Okay, so, this is an incomplete criteria.
-            // So what we need is the criteria that do NOT exist.
-            // The easiest way to do this is to just copy over
-            // the entire "criteria for this thing" list then
-            // remove the ones we actually have while iterating.
-            // Same way that the overall system works.
-
-            // Okay, actually we DON'T have to copy anything over.
-            // Because... we already did. When we grabbed manifest
-            // advancements into our ret->advancements.
-
-            auto& adv = ret.incomplete[name];
-            for (const auto& itr : value["criteria"].items())
+            // Wow, this is also so much better with this system.
+            // We literally just mark criteria as completed. Easy peasy.
+            // Let's not 'find' criteria? Sounds awkward.
+            // Oh, but we kind of have to, I guess.
+            // No, but we don't have to... yeah.
+            for (const auto& [k, v] : value["criteria"].items())
             {
-                // These are the ones that actually exist.
-                auto crit_key = manifest::unprefixed(itr.key());
-
-                if (not adv.criteria.contains(crit_key))
+                if (not adv.criteria.contains(k))
                 {
                     // This is fine actually. We will get random
                     // criteria from parsing that aren't 'real'
                     // criteria. If they're not in manifest,
                     // just ignore them. Not real! Fake! !!!!!
-                    // logger.fatal_error("Criteria key ", crit_key,
-                    //                   " is not present in advancement ", name);
+                    // lol..? ^ what is this referring to...
                     continue;
                 }
-                adv.criteria_ordered.erase(
-                    std::find(adv.criteria_ordered.begin(), adv.criteria_ordered.end(), crit_key));
-                adv.criteria.erase(crit_key);
+                adv.criteria.find(k)->second.achieved = true;
             }
         }
     }
-
-    return ret;
-}
-
-AdvancementStatus AdvancementStatus::from_default(const AdvancementManifest& manifest)
-{
-    AdvancementStatus ret{};
-    ret.incomplete = manifest.advancements;
-    return ret;
 }
 } // namespace aa

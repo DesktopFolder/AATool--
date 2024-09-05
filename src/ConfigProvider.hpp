@@ -23,6 +23,10 @@ static json& get()
 
 inline json getNS(std::string ns)
 {
+    // TODO - all of these could probably return const&
+    // then we simply return &emptyjson if we don't have.
+    // then we can remove many includes and store refs...
+    // would be a vast improvement in compile times?
     auto& js = get();
 
     if (js.contains(ns))

@@ -19,8 +19,8 @@ DEBUG (CurrentFileProvider): watcher with changes: /Users/user/Library/Applicati
 DEBUG (root): Attempting to reset from found updated file: /Users/user/Library/Application Support/PrismLauncher/instances/AA Tracker Testing/.minecraft/saves/New World/advancements/5d831a52-730a-4b4d-adb7-d1ea69617f3e.json
 
 - getting the advancements status
-DEBUG (AdvancementStatus::from_file): Loading advancements from file: /Users/user/Library/Application Support/PrismLauncher/instances/AA Tracker Testing/.minecraft/saves/New World/advancements/5d831a52-730a-4b4d-adb7-d1ea69617f3e.json
-DEBUG (AdvancementStatus::from_file): Found advancement: minecraft:adventure/adventuring_time
+DEBUG (AllAdvancements::from_file): Loading advancements from file: /Users/user/Library/Application Support/PrismLauncher/instances/AA Tracker Testing/.minecraft/saves/New World/advancements/5d831a52-730a-4b4d-adb7-d1ea69617f3e.json
+DEBUG (AllAdvancements::from_file): Found advancement: minecraft:adventure/adventuring_time
 
 - yep, all good, we reset from the json file. NICE!
 DEBUG (OverlayManager): Resetting from advancements.json manifest given file /Users/user/Library/Application Support/PrismLauncher/instances/AA Tracker Testing/.minecraft/saves/New World/advancements/5d831a52-730a-4b4d-adb7-d1ea69617f3e.json

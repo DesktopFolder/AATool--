@@ -207,5 +207,10 @@ void error(Ts&&... ts)
 {
     get_logger("root").error(std::forward<Ts>(ts)...);
 }
+template <typename... Ts>
+void fatal_error(Ts&&... ts)
+{
+    get_logger("root").fatal_error(std::forward<Ts>(ts)...);
+}
 } // namespace log
 } // namespace aa

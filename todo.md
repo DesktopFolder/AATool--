@@ -1,3 +1,21 @@
+# Actual Design Notes I Guess
+
+Top-level polled function is InstanceProvider::poll(). This gets us the 'active instance' based on log file date. Supports instance detection, etc.
+
+Now that we have the active instance, we need to feed it to other things.
+
+WorldProvider::poll(...)? ok, yeah. We will return `true` from this when we get any update.
+
+Basic flow:
+- press a key (p)
+- load all advancements based on that
+
+
+# Linux things
+
+https://tronche.com/gui/x/xlib/input/XGetInputFocus.html
+
+
 # New Design Notes
 
 - key providers can be pub/subbed?

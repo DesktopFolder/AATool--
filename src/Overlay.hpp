@@ -42,14 +42,9 @@ struct OverlayManager
     std::vector<OverlayAdvancement> advancements;
     std::vector<OverlayCriteria> criteria;
 
-    OverlayManager(AdvancementManifest& manifest);
+    OverlayManager(AllAdvancements& status);
 
-    // assumes manifest is in advancements.json atm
-    void reset_from_file(std::string_view filename, const AdvancementManifest& manifest);
-
-    void reset_from_status(const AdvancementStatus& status);
-
-    void reset(const AdvancementManifest& manifest);
+    void update_to(const AllAdvancements& advancements);
 
     void debug();
 
@@ -65,6 +60,6 @@ struct OverlayManager
         reqs.animateDraw(win);
     }
 
-    void remap_textures(AdvancementManifest& manifest);
+    void remap_textures(AllAdvancements& manifest);
 };
 }  // namespace aa

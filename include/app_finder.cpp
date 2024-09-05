@@ -184,9 +184,9 @@ std::optional<std::string> aa::get_focused_minecraft()
 #include <cassert>
 #include <sys/sysctl.h>
 
-inline ApplicationInfo aa::get_focused_application() { return osx::get_current_application(); }
+ApplicationInfo aa::get_focused_application() { return osx::get_current_application(); }
 
-inline std::optional<std::string> aa::get_focused_minecraft()
+std::optional<std::string> aa::get_focused_minecraft()
 {
     const auto& logger = get_logger("get_focused_minecraft");
 

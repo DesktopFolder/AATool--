@@ -2,8 +2,8 @@
 
 namespace aa
 {
-struct AdvancementStatus;
-struct AdvancementManifest;
+struct AllAdvancements;
+struct AllAdvancements;
 
 // Observer pointer... where are you... :sob:
 template<typename T>
@@ -14,12 +14,12 @@ struct Event {};
 // What kind of events can we have?
 struct ManifestUpdate : Event
 {
-    const weak_ptr<AdvancementManifest> new_manifest;
+    const weak_ptr<AllAdvancements> new_manifest;
 };
 
 struct StatusUpdate : Event
 {
-    const weak_ptr<AdvancementStatus> new_status;
+    const weak_ptr<AllAdvancements> new_status;
 };
 
 struct EventHandler

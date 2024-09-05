@@ -113,6 +113,7 @@ add_executable(
     src/WindowManager.cpp src/WindowManager.hpp
     src/ResourceManager.cpp src/ResourceManager.hpp
     src/FileProvider.cpp src/FileProvider.hpp
+    src/InstanceProvider.cpp src/InstanceProvider.hpp
     main.cpp)
 
 if(${SANITIZE} STREQUAL "address")
