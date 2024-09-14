@@ -12,6 +12,7 @@
 #include <iostream>
 #include <optional>
 #include <sstream>
+#include <memory>
 
 namespace aa
 {

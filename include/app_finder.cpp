@@ -184,9 +184,9 @@ std::optional<std::string> aa::get_focused_minecraft()
 #include <cassert>
 #include <sys/sysctl.h>
 
-inline ApplicationInfo aa::get_focused_application() { return osx::get_current_application(); }
+ApplicationInfo aa::get_focused_application() { return osx::get_current_application(); }
 
-inline std::optional<std::string> aa::get_focused_minecraft()
+std::optional<std::string> aa::get_focused_minecraft()
 {
     const auto& logger = get_logger("get_focused_minecraft");
 
@@ -373,6 +373,21 @@ inline std::optional<std::string> aa::get_focused_minecraft()
 
 #elif __linux__
 // Linux specific code for getting the current application details.
+ApplicationInfo aa::get_focused_application() { 
+    ApplicationInfo ret{};
+    ret.name = "UNIMPLEMENTED";
+    ret.exec = "UNIMPLEMENTED";
+    ret.pid  = 0;
+    return ret;
+}
+
+std::optional<std::string> aa::get_focused_minecraft()
+{
+    const auto& logger = get_logger("get_focused_minecraft");
+
+    const auto s = get_focused_application();
+    return {};
+}
 #else
 #error "Unsupported OS? D:"
 #endif
